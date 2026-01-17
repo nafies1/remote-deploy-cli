@@ -197,6 +197,20 @@ services:
 
 ---
 
+### `generate`
+
+Helper to generate configuration values.
+
+- `generate secret_key`: Generates a secure 32-character secret key and saves it to config.
+- `generate working_dir`: Sets the current directory as the `working_dir`.
+
+### `init`
+
+Interactive initialization for configuration.
+
+- `init client`: Prompts for `server_url` and `secret_key`.
+- `init server`: Prompts for `server_port`, `working_dir`, `deployment_command`, and `secret_key` (auto-generates if empty).
+
 ## Command Interactions
 
 ### Workflow: Deployment

@@ -11,7 +11,7 @@ sonarScanner(
     options: {
       'sonar.projectKey': 'remote-deploy-cli',
       'sonar.projectName': 'Remote Deploy CLI',
-      'sonar.projectVersion': '1.0.0',
+      'sonar.projectVersion': pkg.version,
       'sonar.sources': 'bin,lib',
       'sonar.tests': 'test',
       'sonar.javascript.lcov.reportPaths': 'coverage/lcov.info',

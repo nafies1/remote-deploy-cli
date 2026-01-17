@@ -3,14 +3,135 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import { spawn } from 'child_process';
+import crypto from 'crypto';
+import inquirer from 'inquirer';
 import { logger } from '../lib/logger.js';
 import { getConfig, setConfig, getAllConfig, clearConfig } from '../lib/config.js';
 import { startServer } from '../lib/server/index.js';
 import { deploy } from '../lib/client/index.js';
+import pkg from '../package.json' assert { type: 'json' };
 
 const program = new Command();
 
-program.name('redep').description('Remote execution CLI for deployment').version('1.0.0');
+program.name('redep').description(pkg.description).version(pkg.version);
+
+// Helper to generate secure token
+const generateSecureToken = (length = 32) => {
+  return crypto
+    .randomBytes(Math.ceil(length * 0.75))
+    .toString('base64')
+    .slice(0, length)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+};
+
+// Init Command
+program
+  .command('init <type>')
+  .description('Initialize configuration for client or server')
+  .action(async (type) => {
+    if (type !== 'client' && type !== 'server') {
+      logger.error('Type must be either "client" or "server"');
+      process.exit(1);
+    }
+
+    try {
+      if (type === 'client') {
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'server_url',
+            message: 'Enter Server URL:',
+            validate: (input) => (input ? true : 'Server URL is required'),
+          },
+          {
+            type: 'input',
+            name: 'secret_key',
+            message: 'Enter Secret Key:',
+            validate: (input) => (input ? true : 'Secret Key is required'),
+          },
+        ]);
+
+        setConfig('server_url', answers.server_url);
+        setConfig('secret_key', answers.secret_key);
+        logger.success('Client configuration saved successfully.');
+      } else {
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'server_port',
+            message: 'Enter Server Port:',
+            default: '3000',
+            validate: (input) => (!isNaN(input) ? true : 'Port must be a number'),
+          },
+          {
+            type: 'input',
+            name: 'working_dir',
+            message: 'Enter Working Directory:',
+            validate: (input) => (input ? true : 'Working Directory is required'),
+          },
+          {
+            type: 'input',
+            name: 'deployment_command',
+            message: 'Enter Custom Deployment Command (Optional):',
+          },
+          {
+            type: 'input',
+            name: 'secret_key',
+            message: 'Enter Secret Key (Leave empty to generate):',
+          },
+        ]);
+
+        let secret = answers.secret_key;
+        if (!secret) {
+          secret = generateSecureToken();
+          logger.info(`Generated Secret Key: ${secret}`);
+        }
+
+        setConfig('server_port', answers.server_port);
+        setConfig('working_dir', answers.working_dir);
+        if (answers.deployment_command) {
+          setConfig('deployment_command', answers.deployment_command);
+        }
+        setConfig('secret_key', secret);
+        logger.success('Server configuration saved successfully.');
+      }
+    } catch (error) {
+      logger.error(`Initialization failed: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+// Generate Command
+const generateCommand = new Command('generate').description('Generate configuration values');
+
+generateCommand
+  .command('secret_key')
+  .description('Generate a new secret key')
+  .action(() => {
+    try {
+      const secret = generateSecureToken();
+      setConfig('secret_key', secret);
+      logger.success(`Secret Key generated and saved: ${secret}`);
+    } catch (error) {
+      logger.error(`Generation failed: ${error.message}`);
+    }
+  });
+
+generateCommand
+  .command('working_dir')
+  .description('Set working directory to current path')
+  .action(() => {
+    try {
+      const cwd = process.cwd();
+      setConfig('working_dir', cwd);
+      logger.success(`Working Directory set to: ${cwd}`);
+    } catch (error) {
+      logger.error(`Failed to set working directory: ${error.message}`);
+    }
+  });
+
+program.addCommand(generateCommand);
 
 // Configuration Command
 const configCommand = new Command('config').description('Manage configuration');
