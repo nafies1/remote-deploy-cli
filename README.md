@@ -66,20 +66,24 @@ These commands are executed on your **local machine** or **CI/CD runner**.
 Triggers a deployment on the remote server.
 
 **Syntax:**
+
 ```bash
 redep deploy <type>
 ```
 
 **Parameters:**
+
 - `<type>`: The service type to deploy.
   - `fe`: Frontend (pre-configured to run `docker compose pull && docker compose up -d`).
   - `custom`: Custom command (configured on server via `deployment_command`).
 
 **Requirements:**
+
 - `SERVER_URL` must be configured.
 - `SECRET_KEY` must match the server's key.
 
 **Example:**
+
 ```bash
 # Deploy frontend service
 redep deploy fe
@@ -89,6 +93,7 @@ redep deploy custom
 ```
 
 **Expected Output:**
+
 ```
 [INFO] Deploying fe to http://192.168.1.50:3000...
 [SUCCESS] Deployment triggered successfully.
@@ -117,14 +122,17 @@ These commands are executed on the **remote server** (VPS, VM, etc.).
 Starts the server in the foreground. Useful for debugging or running inside Docker.
 
 **Syntax:**
+
 ```bash
 redep listen [--port <number>]
 ```
 
 **Options:**
+
 - `-p, --port`: Specify port (default: 3000).
 
 **Example:**
+
 ```bash
 redep listen --port 4000
 ```
@@ -132,19 +140,23 @@ redep listen --port 4000
 ### `start` (Background)
 
 Starts the server in background mode (Daemon).
-*   **Auto-PM2**: If `pm2` is installed, it uses PM2 for process management.
-*   **Native Fallback**: If `pm2` is missing, it uses Node.js `child_process` to detach.
+
+- **Auto-PM2**: If `pm2` is installed, it uses PM2 for process management.
+- **Native Fallback**: If `pm2` is missing, it uses Node.js `child_process` to detach.
 
 **Syntax:**
+
 ```bash
 redep start [--port <number>]
 ```
 
 **Related Commands:**
+
 - `redep stop`: Stops the background server.
 - `redep status`: Checks if the server is running.
 
 **Example:**
+
 ```bash
 redep start
 # [SUCCESS] Server started in background using PM2
@@ -193,11 +205,11 @@ services:
 sequenceDiagram
     participant Client (CI/Local)
     participant Server (Remote)
-    
+
     Note over Client: User runs "redep deploy fe"
     Client->>Client: Read Config (URL, Secret)
     Client->>Server: POST /deploy { type: "fe" } (Auth: Bearer Token)
-    
+
     Note over Server: Verify Secret Key
     alt Invalid Key
         Server-->>Client: 403 Forbidden
@@ -213,27 +225,30 @@ sequenceDiagram
 
 ## Configuration Reference
 
-| Config Key    | Env Variable  | Description                                      | Context          |
-| :------------ | :------------ | :----------------------------------------------- | :--------------- |
-| `server_port` | `SERVER_PORT` | Port for the server to listen on (Default: 3000) | **Server**       |
-| `working_dir` | `WORKING_DIR` | Directory to execute commands in                 | **Server**       |
-| `deployment_command` | `DEPLOYMENT_COMMAND` | Custom command for `deploy custom` | **Server**       |
-| `server_url`  | `SERVER_URL`  | URL of the remote `redep` server                 | **Client**       |
-| `secret_key`  | `SECRET_KEY`  | Shared secret for authentication                 | **Both**         |
+| Config Key           | Env Variable         | Description                                      | Context    |
+| :------------------- | :------------------- | :----------------------------------------------- | :--------- |
+| `server_port`        | `SERVER_PORT`        | Port for the server to listen on (Default: 3000) | **Server** |
+| `working_dir`        | `WORKING_DIR`        | Directory to execute commands in                 | **Server** |
+| `deployment_command` | `DEPLOYMENT_COMMAND` | Custom command for `deploy custom`               | **Server** |
+| `server_url`         | `SERVER_URL`         | URL of the remote `redep` server                 | **Client** |
+| `secret_key`         | `SECRET_KEY`         | Shared secret for authentication                 | **Both**   |
 
 ---
 
 ## Troubleshooting
 
 ### `Error: "working_dir" is not set`
+
 - **Context**: Server
 - **Fix**: Run `redep config set working_dir /path` or check `docker-compose.yml` environment.
 
 ### `Connection Refused`
+
 - **Context**: Client
 - **Fix**: Ensure server is running (`redep status` or `docker ps`) and port 3000 is open.
 
 ### `403 Forbidden`
+
 - **Context**: Client
 - **Fix**: Re-check `SECRET_KEY` on both machines. They must match exactly.
 

@@ -83,7 +83,6 @@ try {
   execSync('git push origin main', { stdio: 'inherit' });
 
   console.log('Update process completed successfully!');
-
 } catch (error) {
   console.error(`Error during update process: ${error.message}`);
   process.exit(1);
