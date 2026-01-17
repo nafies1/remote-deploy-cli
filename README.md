@@ -71,7 +71,9 @@ redep deploy <type>
 ```
 
 **Parameters:**
-- `<type>`: The service type to deploy. Currently supports `fe` (frontend).
+- `<type>`: The service type to deploy.
+  - `fe`: Frontend (pre-configured to run `docker compose pull && docker compose up -d`).
+  - `custom`: Custom command (configured on server via `deployment_command`).
 
 **Requirements:**
 - `SERVER_URL` must be configured.
@@ -81,6 +83,9 @@ redep deploy <type>
 ```bash
 # Deploy frontend service
 redep deploy fe
+
+# Deploy custom command
+redep deploy custom
 ```
 
 **Expected Output:**
@@ -155,6 +160,9 @@ redep config set working_dir /path/to/project
 
 # Set Secret Key
 redep config set secret_key my-secret-key
+
+# Set Custom Deployment Command (Optional)
+redep config set deployment_command "git pull && npm install && pm2 restart app"
 ```
 
 #### Running with Docker (Recommended)
@@ -172,6 +180,7 @@ services:
     environment:
       - WORKING_DIR=/workspace
       - SECRET_KEY=secure-key
+      - DEPLOYMENT_COMMAND=docker compose restart app
 ```
 
 ---
@@ -208,6 +217,7 @@ sequenceDiagram
 | :------------ | :------------ | :----------------------------------------------- | :--------------- |
 | `server_port` | `SERVER_PORT` | Port for the server to listen on (Default: 3000) | **Server**       |
 | `working_dir` | `WORKING_DIR` | Directory to execute commands in                 | **Server**       |
+| `deployment_command` | `DEPLOYMENT_COMMAND` | Custom command for `deploy custom` | **Server**       |
 | `server_url`  | `SERVER_URL`  | URL of the remote `redep` server                 | **Client**       |
 | `secret_key`  | `SECRET_KEY`  | Shared secret for authentication                 | **Both**         |
 

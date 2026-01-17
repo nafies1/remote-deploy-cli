@@ -1,0 +1,9 @@
+# Ignore artifacts:
+build
+coverage
+dist
+node_modules
+.git
+
+# Ignore config files that don't need formatting
+package-lock.json
