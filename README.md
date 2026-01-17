@@ -5,38 +5,35 @@
 ![npm version](https://img.shields.io/npm/v/remote-deploy-cli.svg)
 ![License](https://img.shields.io/npm/l/remote-deploy-cli.svg)
 
+**Last Updated:** 2026-01-17
+
 ## Table of Contents
 
 - [Description](#description)
-- [Features](#features)
+- [Architecture Overview](#architecture-overview)
 - [Installation](#installation)
-- [Usage](#usage)
-  - [Server Configuration](#1-configure-the-server-machine)
-  - [Client Configuration](#2-configure-the-client-machine)
-  - [Deploying](#3-execute-deployment)
+- [Client Commands](#client-commands)
+  - [deploy](#deploy)
+  - [Client Configuration](#client-configuration)
+- [Server Commands](#server-commands)
+  - [listen](#listen)
+  - [start (Background)](#start-background)
+  - [Server Configuration](#server-configuration)
+- [Command Interactions](#command-interactions)
 - [Configuration Reference](#configuration-reference)
 - [Troubleshooting](#troubleshooting)
-- [Development](#development)
 - [License](#license)
 
 ---
 
 ## Description
 
-**redep** allows you to securely trigger deployment scripts on a remote server from your local machine or CI/CD pipeline. It operates on a **Client-Server** model:
+**redep** allows you to securely trigger deployment scripts on a remote server from your local machine or CI/CD pipeline.
 
-1.  **Server**: Listens for incoming commands and executes them (e.g., `docker compose up -d`).
-2.  **Client**: Sends authenticated commands to the server.
+## Architecture Overview
 
-It is particularly useful for simple setups where you want to redeploy a service on a VPS without SSH-ing manually or setting up complex orchestration tools like Kubernetes.
-
-## Features
-
-- **Client-Server Architecture**: Clear separation of concerns.
-- **Secure Authentication**: Uses Bearer Token authentication with a shared secret.
-- **Docker Ready**: Runs easily as a Docker container; supports managing sibling containers via socket mounting.
-- **Environment Aware**: Full support for `.env` files and environment variables.
-- **Zero-Config option**: Can be fully configured via environment variables for stateless CI/CD usage.
+1.  **Server (Remote Machine)**: Runs the listener process (`redep listen`). It waits for authenticated HTTP requests and executes local shell commands (e.g., `docker compose up`).
+2.  **Client (Local Machine/CI)**: Sends commands (`redep deploy`) to the Server URL.
 
 ---
 
@@ -60,144 +57,175 @@ npm install remote-deploy-cli --save-dev
 
 ---
 
-## Usage
+## Client Commands
 
-### 1. Configure the Server Machine
+These commands are executed on your **local machine** or **CI/CD runner**.
 
-The **Server** is the machine where your application is running. It needs to listen for deployment triggers.
+### `deploy`
 
-#### Option A: Running with Docker (Best Practice)
+Triggers a deployment on the remote server.
 
-We recommend running the `redep` server in a container.
+**Syntax:**
+```bash
+redep deploy <type>
+```
 
-1.  Create a `docker-compose.server.yml` (or add to your existing compose file):
+**Parameters:**
+- `<type>`: The service type to deploy. Currently supports `fe` (frontend).
 
-    ```yaml
-    version: '3.8'
-    services:
-      deploy-server:
-        image: remote-deploy-cli
-        container_name: deploy-server
-        restart: unless-stopped
-        ports:
-          - "3000:3000"
-        volumes:
-          # REQUIRED: Allow control of host docker
-          - /var/run/docker.sock:/var/run/docker.sock
-          # REQUIRED: Mount your project directory
-          - ./your-project-path:/workspace
-        environment:
-          - SERVER_PORT=3000
-          - SECRET_KEY=your-super-secure-secret
-          # Must match the internal mount path above
-          - WORKING_DIR=/workspace
-    ```
+**Requirements:**
+- `SERVER_URL` must be configured.
+- `SECRET_KEY` must match the server's key.
 
-2.  Start the server:
-    ```bash
-    docker compose -f docker-compose.server.yml up -d
-    ```
+**Example:**
+```bash
+# Deploy frontend service
+redep deploy fe
+```
 
-#### Option B: Running Manually on Node.js
+**Expected Output:**
+```
+[INFO] Deploying fe to http://192.168.1.50:3000...
+[SUCCESS] Deployment triggered successfully.
+```
 
-1.  Set the working directory (where your target `docker-compose.yml` lives):
-    ```bash
-    redep config set working_dir /path/to/your/project
-    ```
-2.  Set your secret key:
-    ```bash
-    redep config set secret_key your-super-secure-secret
-    ```
-3.  Start listening:
-    ```bash
-    redep listen
-    ```
+### Client Configuration
 
-### 2. Configure the Client Machine
-
-The **Client** is your laptop or CI/CD runner (e.g., GitHub Actions).
-
-1.  Set the Server URL:
-    ```bash
-    redep config set server_url http://your-server-ip:3000
-    ```
-2.  Set the Secret Key (must match the server's):
-    ```bash
-    redep config set secret_key your-super-secure-secret
-    ```
-
-> **CI/CD Tip**: In CI environments, avoid `redep config`. Use Environment Variables instead:
-> `SERVER_URL=... SECRET_KEY=... redep deploy fe`
-
-### 3. Execute Deployment
-
-Trigger a deployment command. Currently supports the `fe` (frontend) type, which typically runs a docker-compose pull and up sequence.
+Configure the client to know where the server is.
 
 ```bash
-redep deploy fe
+# Set Server URL
+redep config set server_url http://<server-ip>:3000
+
+# Set Secret Key
+redep config set secret_key my-secret-key
+```
+
+---
+
+## Server Commands
+
+These commands are executed on the **remote server** (VPS, VM, etc.).
+
+### `listen`
+
+Starts the server in the foreground. Useful for debugging or running inside Docker.
+
+**Syntax:**
+```bash
+redep listen [--port <number>]
+```
+
+**Options:**
+- `-p, --port`: Specify port (default: 3000).
+
+**Example:**
+```bash
+redep listen --port 4000
+```
+
+### `start` (Background)
+
+Starts the server in background mode (Daemon).
+*   **Auto-PM2**: If `pm2` is installed, it uses PM2 for process management.
+*   **Native Fallback**: If `pm2` is missing, it uses Node.js `child_process` to detach.
+
+**Syntax:**
+```bash
+redep start [--port <number>]
+```
+
+**Related Commands:**
+- `redep stop`: Stops the background server.
+- `redep status`: Checks if the server is running.
+
+**Example:**
+```bash
+redep start
+# [SUCCESS] Server started in background using PM2
+```
+
+### Server Configuration
+
+Configure the runtime environment for the server.
+
+```bash
+# Set Working Directory (Where docker-compose.yml lives)
+redep config set working_dir /path/to/project
+
+# Set Secret Key
+redep config set secret_key my-secret-key
+```
+
+#### Running with Docker (Recommended)
+
+Instead of manual configuration, run the server as a container:
+
+```yaml
+# docker-compose.server.yml
+services:
+  deploy-server:
+    image: remote-deploy-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./my-app:/workspace
+    environment:
+      - WORKING_DIR=/workspace
+      - SECRET_KEY=secure-key
+```
+
+---
+
+## Command Interactions
+
+### Workflow: Deployment
+
+```mermaid
+sequenceDiagram
+    participant Client (CI/Local)
+    participant Server (Remote)
+    
+    Note over Client: User runs "redep deploy fe"
+    Client->>Client: Read Config (URL, Secret)
+    Client->>Server: POST /deploy { type: "fe" } (Auth: Bearer Token)
+    
+    Note over Server: Verify Secret Key
+    alt Invalid Key
+        Server-->>Client: 403 Forbidden
+        Client->>User: Error: Authentication Failed
+    else Valid Key
+        Server->>Server: Execute "docker compose up" in WORKING_DIR
+        Server-->>Client: 200 OK { status: "success" }
+        Client->>User: Success Message
+    end
 ```
 
 ---
 
 ## Configuration Reference
 
-You can configure `redep` using CLI commands (`redep config set`) or Environment Variables. Environment variables take precedence.
-
-| Config Key    | Env Variable  | Description                                      | Required Context |
+| Config Key    | Env Variable  | Description                                      | Context          |
 | :------------ | :------------ | :----------------------------------------------- | :--------------- |
-| `server_port` | `SERVER_PORT` | Port for the server to listen on (Default: 3000) | Server           |
-| `working_dir` | `WORKING_DIR` | Directory to execute commands in                 | Server           |
-| `server_url`  | `SERVER_URL`  | URL of the remote `redep` server                 | Client           |
-| `secret_key`  | `SECRET_KEY`  | Shared secret for authentication                 | Both             |
-
-### Managing Configuration via CLI
-
-```bash
-# Set a value
-redep config set <key> <value>
-
-# Get a value
-redep config get <key>
-
-# List all current config
-redep config list
-
-# Clear all config
-redep config clear
-```
+| `server_port` | `SERVER_PORT` | Port for the server to listen on (Default: 3000) | **Server**       |
+| `working_dir` | `WORKING_DIR` | Directory to execute commands in                 | **Server**       |
+| `server_url`  | `SERVER_URL`  | URL of the remote `redep` server                 | **Client**       |
+| `secret_key`  | `SECRET_KEY`  | Shared secret for authentication                 | **Both**         |
 
 ---
 
 ## Troubleshooting
 
 ### `Error: "working_dir" is not set`
-- **Cause**: The server doesn't know where to run commands.
-- **Fix**: Run `redep config set working_dir /absolute/path` or set `WORKING_DIR` env var. In Docker, ensure the volume is mounted and `WORKING_DIR` matches the mount point.
+- **Context**: Server
+- **Fix**: Run `redep config set working_dir /path` or check `docker-compose.yml` environment.
 
-### `Connection Refused` / `Network Error`
-- **Cause**: Client cannot reach the server.
-- **Fix**:
-  1. Check if `redep listen` is running on the server.
-  2. Verify the `SERVER_URL` is correct (e.g., `http://x.x.x.x:3000`).
-  3. Check firewall rules (allow port 3000).
+### `Connection Refused`
+- **Context**: Client
+- **Fix**: Ensure server is running (`redep status` or `docker ps`) and port 3000 is open.
 
-### `403 Forbidden` / `Authentication Failed`
-- **Cause**: Mismatched secret keys.
-- **Fix**: Ensure `SECRET_KEY` is identical on both Client and Server.
-
----
-
-## Contribution
-
-We welcome contributions!
-
-1.  **Fork** the repository.
-2.  **Clone** your fork: `git clone https://github.com/your-username/remote-deploy-cli.git`
-3.  **Install dependencies**: `npm install`
-4.  **Create a branch**: `git checkout -b feature/amazing-feature`
-5.  **Commit changes**: `git commit -m 'Add amazing feature'`
-6.  **Push**: `git push origin feature/amazing-feature`
-7.  **Open a Pull Request**.
+### `403 Forbidden`
+- **Context**: Client
+- **Fix**: Re-check `SECRET_KEY` on both machines. They must match exactly.
 
 ---
 

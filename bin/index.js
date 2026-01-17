@@ -2,6 +2,7 @@
 
 import 'dotenv/config';
 import { Command } from 'commander';
+import { spawn } from 'child_process';
 import { logger } from '../lib/logger.js';
 import { getConfig, setConfig, getAllConfig, clearConfig } from '../lib/config.js';
 import { startServer } from '../lib/server/index.js';
@@ -52,6 +53,141 @@ configCommand
   });
 
 program.addCommand(configCommand);
+
+// Background Process Management
+program
+  .command('start')
+  .description('Start the server in background (daemon mode) using PM2 if available')
+  .option('-p, --port <port>', 'Port to listen on')
+  .action((options) => {
+    // Try to use PM2 first
+    try {
+      // Check if PM2 is available via API
+      // We'll use a dynamic import or checking for the pm2 binary in a real scenario
+      // But here we can just try to spawn 'pm2' command
+      
+      const args = ['start', process.argv[1], '--name', 'redep-server', '--', 'listen'];
+      if (options.port) {
+        args.push('--port', options.port);
+      }
+
+      const pm2 = spawn('pm2', args, {
+        stdio: 'inherit',
+        shell: true // Required to find pm2 in PATH
+      });
+
+      pm2.on('error', () => {
+        // Fallback to native spawn if PM2 is not found/fails
+        logger.info('PM2 not found, falling back to native background process...');
+        startNativeBackground(options);
+      });
+
+      pm2.on('close', (code) => {
+        if (code !== 0) {
+           logger.warn('PM2 start failed, falling back to native background process...');
+           startNativeBackground(options);
+        } else {
+           logger.success('Server started in background using PM2');
+        }
+      });
+
+    } catch (e) {
+      startNativeBackground(options);
+    }
+  });
+
+function startNativeBackground(options) {
+    const existingPid = getConfig('server_pid');
+    
+    if (existingPid) {
+      try {
+        process.kill(existingPid, 0);
+        logger.warn(`Server is already running with PID ${existingPid}`);
+        return;
+      } catch (e) {
+        // Process doesn't exist, clear stale PID
+        setConfig('server_pid', null);
+      }
+    }
+
+    const args = ['listen'];
+    if (options.port) {
+      args.push('--port', options.port);
+    }
+
+    const child = spawn(process.argv[0], [process.argv[1], ...args], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+
+    child.unref();
+    setConfig('server_pid', child.pid);
+    logger.success(`Server started in background (native) with PID ${child.pid}`);
+}
+
+program
+  .command('stop')
+  .description('Stop the background server')
+  .action(() => {
+    // Try PM2 stop first
+    const pm2 = spawn('pm2', ['stop', 'redep-server'], { stdio: 'ignore', shell: true });
+    
+    pm2.on('close', (code) => {
+      if (code === 0) {
+        logger.success('Server stopped (PM2)');
+        return;
+      }
+      
+      // Fallback to native stop
+      const pid = getConfig('server_pid');
+      if (!pid) {
+        logger.warn('No active server found.');
+        return;
+      }
+
+      try {
+        process.kill(pid);
+        setConfig('server_pid', null);
+        logger.success(`Server stopped (PID ${pid})`);
+      } catch (e) {
+        if (e.code === 'ESRCH') {
+          logger.warn(`Process ${pid} not found. Cleaning up config.`);
+          setConfig('server_pid', null);
+        } else {
+          logger.error(`Failed to stop server: ${e.message}`);
+        }
+      }
+    });
+  });
+
+program
+  .command('status')
+  .description('Check server status')
+  .action(() => {
+     // Try PM2 status first
+     const pm2 = spawn('pm2', ['describe', 'redep-server'], { stdio: 'inherit', shell: true });
+
+     pm2.on('close', (code) => {
+        if (code !== 0) {
+             // Fallback to native status
+            const pid = getConfig('server_pid');
+            
+            if (!pid) {
+              logger.info('Server is NOT running.');
+              return;
+            }
+
+            try {
+              process.kill(pid, 0);
+              logger.success(`Server is RUNNING (PID ${pid})`);
+            } catch (e) {
+              logger.warn(`Server is NOT running (Stale PID ${pid} found).`);
+              setConfig('server_pid', null);
+            }
+        }
+     });
+  });
 
 // Server Command
 program
