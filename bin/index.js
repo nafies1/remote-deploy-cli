@@ -9,7 +9,7 @@ import { logger } from '../lib/logger.js';
 import { getConfig, setConfig, getAllConfig, clearConfig } from '../lib/config.js';
 import { startServer } from '../lib/server/index.js';
 import { deploy } from '../lib/client/index.js';
-import pkg from '../package.json' assert { type: 'json' };
+import pkg from '../package.json';
 
 const program = new Command();
 
