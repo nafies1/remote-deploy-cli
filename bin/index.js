@@ -66,14 +66,28 @@ program
       // We'll use a dynamic import or checking for the pm2 binary in a real scenario
       // But here we can just try to spawn 'pm2' command
       
-      const args = ['start', process.argv[1], '--name', 'redep-server', '--', 'listen'];
+      // Use dedicated server entry point for PM2 to avoid CLI/ESM issues
+      // Resolve absolute path to server-entry.js
+      const scriptPath = new URL('../server-entry.js', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'); 
+      
+      const args = [
+        'start', 
+        scriptPath,
+        '--name', 'redep-server'
+      ];
+      
+      // We don't pass 'listen' arg because server-entry.js starts immediately
+      // But we do need to ensure env vars are passed if port is customized
+      
+      const env = { ...process.env };
       if (options.port) {
-        args.push('--port', options.port);
+        env.SERVER_PORT = options.port;
       }
 
       const pm2 = spawn('pm2', args, {
         stdio: 'inherit',
-        shell: true // Required to find pm2 in PATH
+        shell: true,
+        env: env // Pass modified env with port
       });
 
       pm2.on('error', () => {
