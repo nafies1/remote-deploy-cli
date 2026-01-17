@@ -1,0 +1,22 @@
+services:
+  deploy-server:
+    build: .
+    container_name: deploy-server
+    restart: unless-stopped
+    
+    env_file:
+      - .env
+
+    ports:
+      - "${SERVER_PORT}:3000"
+    environment:
+      # Override WORKING_DIR to match the internal container path
+      - WORKING_DIR=/workspace
+    volumes:
+      # Required: Give access to the host's Docker Daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Required: Mount the project directory that contains docker-compose.yml
+      # Host Path : Container Path
+      # CHANGE THIS to your actual project path
+      - ${WORKING_DIR}:/workspace
