@@ -9,6 +9,7 @@ import 'dotenv/config';
 const port = process.env.SERVER_PORT || getConfig('server_port') || 3000;
 const secret = process.env.SECRET_KEY || getConfig('secret_key');
 const workingDir = process.env.WORKING_DIR || getConfig('working_dir');
+const deploymentCommand = process.env.DEPLOYMENT_COMMAND || getConfig('deployment_command');
 
 if (!secret) {
   logger.warn('Warning: No "secret_key" set. Communication might be insecure.');
@@ -19,4 +20,9 @@ if (!workingDir) {
   process.exit(1);
 }
 
-startServer(port, secret, workingDir);
+if (!deploymentCommand) {
+  logger.error('Error: "deployment_command" is not set.');
+  process.exit(1);
+}
+
+startServer(port, secret, workingDir, deploymentCommand);

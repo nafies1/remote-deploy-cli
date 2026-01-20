@@ -342,7 +342,15 @@ program
       process.exit(1);
     }
 
-    startServer(port, secret, workingDir);
+    const deploymentCommand = getConfig('deployment_command') || process.env.DEPLOYMENT_COMMAND;
+    if (!deploymentCommand) {
+      logger.error(
+        'Error: "deployment_command" is not set. Please set it using "redep config set deployment_command <cmd>" or DEPLOYMENT_COMMAND env var.'
+      );
+      process.exit(1);
+    }
+
+    startServer(port, secret, workingDir, deploymentCommand);
   });
 
 // Client Command
