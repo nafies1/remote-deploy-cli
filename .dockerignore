@@ -1,0 +1,63 @@
+# Node.js artifacts
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build and dependency artifacts
+coverage/
+dist/
+build/
+*.tgz
+*.tar.gz
+
+# Development and IDE files
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment and configuration
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Documentation and licenses
+README.md
+LICENSE
+docs/
+CHANGELOG.md
+CONTRIBUTING.md
+
+# Test files
+test-target/
+*.test.js
+*.spec.js
+__tests__/
+__mocks__/
+
+# Log files
+*.log
+logs/
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# OS and backup files
+.DS_Store
+Thumbs.db
+
+# Package manager files
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+sonar-project.js

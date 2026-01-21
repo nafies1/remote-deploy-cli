@@ -40,8 +40,15 @@ program
         const answers = await inquirer.prompt([
           {
             type: 'input',
+            name: 'server_name',
+            message: 'Enter Server Name:',
+            default: 'prod',
+            validate: (input) => (input ? true : 'Server Name is required'),
+          },
+          {
+            type: 'input',
             name: 'server_url',
-            message: 'Enter Server URL:',
+            message: 'Enter Server URL (Host):',
             validate: (input) => (input ? true : 'Server URL is required'),
           },
           {
@@ -52,9 +59,13 @@ program
           },
         ]);
 
-        setConfig('server_url', answers.server_url);
-        setConfig('secret_key', answers.secret_key);
-        logger.success('Client configuration saved successfully.');
+        const servers = getConfig('servers') || {};
+        servers[answers.server_name] = {
+          url: answers.server_url,
+          secret: answers.secret_key,
+        };
+        setConfig('servers', servers);
+        logger.success(`Client configuration for '${answers.server_name}' saved successfully.`);
       } else {
         const answers = await inquirer.prompt([
           {
@@ -322,7 +333,7 @@ program
 program
   .command('listen')
   .description('Start the server to listen for commands')
-  .option('-p, --port <port>', 'Port to listen on', 3000)
+  .option('-p, --port <port>', 'Port to listen on')
   .action((options) => {
     const port = options.port || getConfig('server_port') || process.env.SERVER_PORT || 3000;
     const secret = getConfig('secret_key') || process.env.SECRET_KEY;
@@ -355,16 +366,25 @@ program
 
 // Client Command
 program
-  .command('deploy <type>')
-  .description('Deploy a service (e.g., "fe") to the server machine')
-  .action(async (type) => {
-    const serverUrl = getConfig('server_url') || process.env.SERVER_URL;
-    const secret = getConfig('secret_key') || process.env.SECRET_KEY;
+  .command('deploy <serverName>')
+  .description('Deploy to a specific server (e.g., "prod")')
+  .action(async (serverName) => {
+    const servers = getConfig('servers') || {};
+    let serverUrl, secret;
+
+    if (servers[serverName]) {
+      serverUrl = servers[serverName].url;
+      secret = servers[serverName].secret;
+    } else {
+      serverUrl = getConfig('server_url') || process.env.SERVER_URL;
+      secret = getConfig('secret_key') || process.env.SECRET_KEY;
+    }
 
     if (!serverUrl) {
       logger.error(
-        'Error: "server_url" is not set. Set SERVER_URL env var or run "redep config set server_url <url>"'
+        `Error: Server "${serverName}" not found in config, and global "server_url" is not set.`
       );
+      logger.info('Run "redep init client" to configure a server.');
       process.exit(1);
     }
 
@@ -376,7 +396,7 @@ program
     }
 
     try {
-      await deploy(type, serverUrl, secret);
+      await deploy(serverName, serverUrl, secret);
     } catch (error) {
       logger.error(`Deploy failed: ${error.message}`);
       process.exit(1);

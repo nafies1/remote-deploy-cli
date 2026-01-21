@@ -161,6 +161,7 @@ See [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) for details.
 
 ## 📚 Additional Documentation
 
+- [Docker Guide](docs/DOCKER.md) - Full reference for Docker deployment, configuration, and security.
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Solutions for common connection and auth issues.
 - [Advanced Configuration](docs/ADVANCED_CONFIG.md) - Deep dive into config options and PM2.
 - [API Reference](docs/API.md) - Socket.IO events and protocol details.
