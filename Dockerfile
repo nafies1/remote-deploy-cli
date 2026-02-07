@@ -18,12 +18,19 @@ RUN if [ -f package-lock.json ]; then \
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install minimal Docker CLI and dumb-init (remove compose plugin if not essential)
+# Install required packages
 RUN apk add --no-cache \
+  bash \
   docker-cli \
+  docker-cli-compose \
   dumb-init && \
   # Clean up apk cache to save space
   rm -rf /var/cache/apk/*
+
+# Verify required tools has been installed (Build-time check)
+RUN bash --version && \
+    docker --version && \
+    docker compose version
 
 # Set environment to production
 ENV NODE_ENV=production
