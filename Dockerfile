@@ -21,6 +21,7 @@ WORKDIR /app
 # Install required packages
 RUN apk add --no-cache \
   bash \
+  git \
   docker-cli \
   docker-cli-compose \
   dumb-init && \
